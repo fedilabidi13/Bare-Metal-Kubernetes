@@ -80,7 +80,17 @@ sudo yum remove docker \
                   podman \
                   runc
 ```
-2- Edit the repository file for docker-ce manually since it is not available for rhel distributions. We have to recover it from centos servers.
+
+2- Set up the repository for other docker related packages:
+
+Install the yum-utils package (which provides the yum-config-manager utility) and set up the repository.
+
+```sh
+sudo yum install -y yum-utils
+sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+```
+
+3- Edit the repository file for docker-ce manually since it is not available for rhel distributions. We have to recover it from centos servers.
 
 ```sh
 sudo nano /etc/yum.repos.d/docker-ce.repo
@@ -97,14 +107,7 @@ gpgcheck=1
 gpgkey=https://download.docker.com/linux/centos/gpg
 ```
 
-3- Set up the repository for other docker related packages:
 
-Install the yum-utils package (which provides the yum-config-manager utility) and set up the repository.
-
-```sh
-sudo yum install -y yum-utils
-sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-```
 4- Install Docker Engine
 ```sh
 sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
