@@ -26,6 +26,13 @@
   </ol>
 </details>
 
+<strong>BEFORE PROCEEDING MAKE SURE YOU ARE USING ROOT USER</strong>
+
+```sh
+sudo su
+
+```
+
 <h2>Common kubernetes setup for all nodes</h2>
 <strong>Disable Swap</strong>
 
@@ -134,7 +141,7 @@ Lets login to the server and run the below commands to install CRIO (switch to r
 
 Install CRIO and start it using systemctl – Make sure it is running
 ```sh
-sudo su -
+
 export VERSION=1.25
 export OS=CentOS_8
 curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/devel:kubic:libcontainers:stable.repo
