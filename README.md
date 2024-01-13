@@ -177,7 +177,7 @@ sudo systemctl enable --now kubelet
 Now that we have all the packages ready and installed on the server the next step is to create the control plane using kubeadm. Truncated output below for better visibility.
 
 ```sh
-[root@k8s-master ~]# kubeadm init --pod-network-cidr=10.244.0.0/16
+[root@k8s-master ~]# kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=unix:///var/run/crio/crio.sock
 
 [init] Using Kubernetes version: v1.26.12
 [preflight] Running pre-flight checks
