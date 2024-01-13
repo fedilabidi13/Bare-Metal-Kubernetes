@@ -69,6 +69,55 @@ ResourceDisk.MountPoint=/mnt
 ResourceDisk.SWAPSizeMB=0
 ```
 
+Restart the Azure Linux Agent. See How to update the Azure Linux Agent on a VM for information about the restart commands for rhel distributions.
+
+Check your current package version
+
+```sh
+sudo yum list WALinuxAgent
+```
+Check available updates
+
+```sh
+sudo yum check-update WALinuxAgent
+```
+
+Install the latest package version
+
+```sh
+sudo yum install WALinuxAgent -y
+```
+
+Ensure auto update is enabled
+First, check to see if it's enabled:
+
+```sh
+sudo cat /etc/waagent.conf | grep -i autoupdate
+```
+
+Find 'AutoUpdate.Enabled'. If you see this text, it's enabled:
+
+```sh
+AutoUpdate.Enabled=y
+```
+
+To enable it, run:
+
+```sh
+sudo sed -i 's/\# AutoUpdate.Enabled=y/AutoUpdate.Enabled=y/g' /etc/waagent.conf
+```
+
+Restart the waagent service
+
+```sh
+sudo systemctl restart waagent
+```
+Validate waagent service is up and running
+
+```sh
+sudo systemctl status waagent
+```
+
 Reboot the machine: 
 
 ```sh
@@ -105,6 +154,7 @@ nano /etc/cloud/cloud.cfg
 Change this variable accordingly:
 
 preserve_hostname: true
+
 
 <strong>Install docker</strong>
 
@@ -306,7 +356,7 @@ kubectl get no -o wide
 For the pods to communicate we should deploy networking addon. Here I am deploying flannel.
 
 So before we deploy flannel or any network addon you may notice that if you do a get pod -A, coredns will be in ContainerCreating status.
-Lets install flannel and see what happens.
+Lets install calico and see what happens.
 
 ```sh
 curl https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml -O
@@ -332,5 +382,9 @@ Just add the flag --cri-socket=unix:///var/run/crio/crio.sock to avoid system co
 kubeadm join 10.0.0.5:6443 --token k1quxn.5vyxfviqboxvj6sq         --discovery-token-ca-cert-hash sha256:cd07b49f3d7376a1f1a4ef24dd6f87550a4b7763be2f98325759dc762ac70ce3 --cri-socket=unix:///var/run/crio/crio.sock
 
 ```
+in case you missed the command you can generate it again, from the master node using the command: 
 
+```sh
+kubeadm token create --print-join-command
+```
 
