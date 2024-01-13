@@ -30,9 +30,8 @@
 
 ```sh
 sudo su
-
 ```
-
+<img src="img/su.JPG">
 <h2>Common kubernetes setup for all nodes</h2>
 <strong>Disable Swap</strong>
 
@@ -43,10 +42,49 @@ Kubernetes schedules work based on the understanding of available resources. If 
 You can use the following comands: 
 
 ```sh
-sudo su
 sudo swapoff -a
 sudo sed -i '/ swap / s/^/#/' /etc/fstab
 ```
+<img src="img/swap-off.JPG">
+
+Also, we need to perform these actions, which are special for azure virtual machines. We are still in the context of disabling swap memory: 
+
+```sh
+nano /etc/waagent.conf
+```
+
+chnage accordingly: 
+
+```sh
+# Format if unformatted. If 'n', resource disk will not be mounted.
+ResourceDisk.Format=n
+
+# Create and use SWAPfile on resource disk.
+ResourceDisk.EnableSWAP=n
+
+#Mount point for the resource disk
+ResourceDisk.MountPoint=/mnt
+
+#Size of the SWAPfile.
+ResourceDisk.SWAPSizeMB=0
+```
+
+Reboot the machine: 
+
+```sh
+sudo reboot
+```
+After booting um the machine, check memory status using: 
+
+```sh
+free -h
+```
+You should have something like this: 
+
+<img src="img/swap0.JPG">
+
+All swap values should be equal to 0.
+
 
 <strong>Set up hostnames</strong>
 
@@ -59,7 +97,7 @@ The command used is:
 
 
 ```sh
-sudo hostnamectl set-hostname master
+sudo hostnamectl set-hostname k8s-master
 sudo reboot
 nano /etc/cloud/cloud.cfg
 
@@ -87,6 +125,7 @@ sudo yum remove docker \
                   podman \
                   runc
 ```
+<img src="img/docker/1.JPG">
 
 2- Set up the repository for other docker related packages:
 
@@ -96,6 +135,8 @@ Install the yum-utils package (which provides the yum-config-manager utility) an
 sudo yum install -y yum-utils
 sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
 ```
+
+<img src="img/docker/2.JPG">
 
 3- Edit the repository file for docker-ce manually since it is not available for rhel distributions. We have to recover it from centos servers.
 
@@ -120,6 +161,10 @@ gpgkey=https://download.docker.com/linux/centos/gpg
 sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 ```
+
+<img src="img/docker/4.JPG">
+<img src="img/docker/5.JPG">
+
 5- Start Docker and enable it on startup:
 
 ```sh
@@ -131,6 +176,9 @@ sudo systemctl enable docker
 ```sh
 sudo docker version
 ```
+
+<img src="img/docker/6.JPG">
+
 Now since we have docker up and running on all the virtual Machines, we need to configure crio which will be the container runtime engine for our kubernetes cluster. 
 
 The supported versions for CRIO doesn’t cover RHEL 9 so we are going to use Centos 8 installation steps.
@@ -152,6 +200,11 @@ systemctl enable crio
 journalctl -u crio -n 10 --no-pager
 
 ```
+
+<img src="img/crio/1.JPG">
+<img src="img/crio/2.JPG">
+
+
 Set SELinux to permissive mode:
 
 These instructions are for Kubernetes 1.26.
@@ -161,6 +214,9 @@ These instructions are for Kubernetes 1.26.
 sudo setenforce 0
 sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
 ```
+
+<img src="img/selinux/Capture.JPG">
+
 Add the Kubernetes yum repository. The exclude parameter in the repository definition ensures that the packages related to Kubernetes are not upgraded upon running yum update as there's a special procedure that must be followed for upgrading Kubernetes. Please note that this repository have packages only for Kubernetes 1.26; for other Kubernetes minor versions, you need to change the Kubernetes minor version in the URL to match your desired minor version (you should also check that you are reading the documentation for the version of Kubernetes that you plan to install).
 
 ```sh
@@ -175,12 +231,17 @@ gpgkey=https://pkgs.k8s.io/core:/stable:/v1.26/rpm/repodata/repomd.xml.key
 exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
 EOF
 ```
+
+<img src="img/kube/1.JPG">
+
 Install kubelet, kubeadm and kubectl, and enable kubelet to ensure it's automatically started on startup:
 
 ```sh
 sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
 sudo systemctl enable --now kubelet
 ```
+<img src="img/kube/2.JPG">
+<img src="img/kube/3.JPG">
 
 <h2>Configuration for Master node and creating the cluster</h2>
 
@@ -221,6 +282,47 @@ Then you can join any number of worker nodes by running the following on each as
 kubeadm join 10.0.0.5:6443 --token k1quxn.5vyxfviqboxvj6sq         --discovery-token-ca-cert-hash sha256:cd07b49f3d7376a1f1a4ef24dd6f87550a4b7763be2f98325759dc762ac70ce3 
 ```
 
+perform these two action in order to be able to access the kubernetes cluster using kubectl command: 
+
+```sh 
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config 
+```
+
+```sh
+export KUBECONFIG=/etc/kubernetes/admin.conf
+```
+
+Now Lets Test our first node, We can check that using the command:
+
+```sh
+kubectl get no -o wide
+```
+
+<img src="img/kube/get-no.JPG">
+
+
+For the pods to communicate we should deploy networking addon. Here I am deploying flannel.
+
+So before we deploy flannel or any network addon you may notice that if you do a get pod -A, coredns will be in ContainerCreating status.
+Lets install flannel and see what happens.
+
+```sh
+curl https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml -O
+kubectl apply -f calico.yaml
+```
+Now lets check our pods: 
+
+```sh
+kubectl get po -A
+```
+It should look something like that, You can ignore the line that contains "nginx". I deployed it for test purpose.
+
+<img src="img/kube/pods.JPG">
+
+Perfect now our first machine which plays the role of master or control plane ready. Now we can procede with making other machines join the cluster. 
+
 <h2>Joining worker nodes to the cluster</h2>
 
 Now we recover the join command showed above and we paste it in each worker node: 
@@ -230,3 +332,5 @@ Just add the flag --cri-socket=unix:///var/run/crio/crio.sock to avoid system co
 kubeadm join 10.0.0.5:6443 --token k1quxn.5vyxfviqboxvj6sq         --discovery-token-ca-cert-hash sha256:cd07b49f3d7376a1f1a4ef24dd6f87550a4b7763be2f98325759dc762ac70ce3 --cri-socket=unix:///var/run/crio/crio.sock
 
 ```
+
+
