@@ -149,7 +149,7 @@ curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo
 yum install crio
 systemctl start crio
 systemctl enable crio
-journalctl -u crio -n 100 --no-pager
+journalctl -u crio -n 10 --no-pager
 
 ```
 Set SELinux to permissive mode:
