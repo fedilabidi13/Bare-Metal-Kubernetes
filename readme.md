@@ -26,6 +26,13 @@
   </ol>
 </details>
 
+<strong>BEFORE PROCEEDING MAKE SURE YOU ARE USING ROOT USER</strong>
+
+```sh
+sudo su
+
+```
+
 <h2>Common kubernetes setup for all nodes</h2>
 <strong>Disable Swap</strong>
 
@@ -80,7 +87,17 @@ sudo yum remove docker \
                   podman \
                   runc
 ```
-2- Edit the repository file for docker-ce manually since it is not available for rhel distributions. We have to recover it from centos servers.
+
+2- Set up the repository for other docker related packages:
+
+Install the yum-utils package (which provides the yum-config-manager utility) and set up the repository.
+
+```sh
+sudo yum install -y yum-utils
+sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+```
+
+3- Edit the repository file for docker-ce manually since it is not available for rhel distributions. We have to recover it from centos servers.
 
 ```sh
 sudo nano /etc/yum.repos.d/docker-ce.repo
@@ -97,14 +114,7 @@ gpgcheck=1
 gpgkey=https://download.docker.com/linux/centos/gpg
 ```
 
-3- Set up the repository for other docker related packages:
 
-Install the yum-utils package (which provides the yum-config-manager utility) and set up the repository.
-
-```sh
-sudo yum install -y yum-utils
-sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-```
 4- Install Docker Engine
 ```sh
 sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -131,15 +141,15 @@ Lets login to the server and run the below commands to install CRIO (switch to r
 
 Install CRIO and start it using systemctl – Make sure it is running
 ```sh
-sudo su -
+
 export VERSION=1.25
 export OS=CentOS_8
 curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/devel:kubic:libcontainers:stable.repo
 curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo
 yum install crio
-systemctl status crio
 systemctl start crio
 systemctl enable crio
+journalctl -u crio -n 10 --no-pager
 
 ```
 Set SELinux to permissive mode:
@@ -177,7 +187,7 @@ sudo systemctl enable --now kubelet
 Now that we have all the packages ready and installed on the server the next step is to create the control plane using kubeadm. Truncated output below for better visibility.
 
 ```sh
-[root@k8s-master ~]# kubeadm init --pod-network-cidr=10.244.0.0/16
+[root@k8s-master ~]# kubeadm init --pod-network-cidr=10.244.0.0/16 --cri-socket=unix:///var/run/crio/crio.sock
 
 [init] Using Kubernetes version: v1.26.12
 [preflight] Running pre-flight checks
