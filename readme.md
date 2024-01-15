@@ -17,11 +17,12 @@
   <summary>Table of Contents</summary>
   <ol>
    <ul>
-        <li><a href="#prerequisites">Common kubernetes setup for all nodes</a></li>
-        <li><a href="#installation">Configuration for Master node and creating the cluster</a></li>
-        <li><a href="#prerequisites">Joining worker nodes to the cluster</a></li>
-        <li><a href="#installation">Configuring helm</a></li>
-        <li><a href="#installation">Deploying Airbyte</a></li>
+        <li><a href="#common">Common kubernetes setup for all nodes</a></li>
+        <li><a href="#master">Configuration for Master node and creating the cluster</a></li>
+        <li><a href="#join">Joining worker nodes to the cluster</a></li>
+        <li><a href="#helm">Configuring helm</a></li>
+        <li><a href="#airbyte">Deploying Airbyte on the cluster using helm</a></li>
+        <li><a href="#trouble">Troubleshooting</a></li>
    </ul>
   </ol>
 </details>
@@ -32,7 +33,7 @@
 sudo su
 ```
 <img src="img/su.JPG">
-<h2>Common kubernetes setup for all nodes</h2>
+<h2 id="common">Common kubernetes setup for all nodes</h2>
 <strong>Disable Swap</strong>
 
 You might know about swap space on hard drives, which OS systems try to use as if it were RAM. Operating systems try to move less frequently accessed data to the swap space to free up RAM for more immediate tasks. However, accessing data in swap is much slower than accessing data in RAM because hard drives are slower than RAM.
@@ -156,81 +157,7 @@ Change this variable accordingly:
 preserve_hostname: true
 
 
-<strong>Install docker</strong>
-
-
-1- Uninstall old versions
-
-Older versions of Docker went by docker or docker-engine. Uninstall any such older versions before attempting to install a new version, along with associated dependencies. Also uninstall Podman and the associated dependencies if installed already:
-
-```sh
-sudo yum remove docker \
-                  docker-client \
-                  docker-client-latest \
-                  docker-common \
-                  docker-latest \
-                  docker-latest-logrotate \
-                  docker-logrotate \
-                  docker-engine \
-                  podman \
-                  runc
-```
-<img src="img/docker/1.JPG">
-
-2- Set up the repository for other docker related packages:
-
-Install the yum-utils package (which provides the yum-config-manager utility) and set up the repository.
-
-```sh
-sudo yum install -y yum-utils
-sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
-```
-
-<img src="img/docker/2.JPG">
-
-3- Edit the repository file for docker-ce manually since it is not available for rhel distributions. We have to recover it from centos servers.
-
-```sh
-sudo nano /etc/yum.repos.d/docker-ce.repo
-```
-
-change the docker-ce-stable section as follows:
-
-```txt
-[docker-ce-stable]
-name=Docker CE Stable - $basearch
-baseurl=https://download.docker.com/linux/centos/$releasever/$basearch/stable
-enabled=1
-gpgcheck=1
-gpgkey=https://download.docker.com/linux/centos/gpg
-```
-
-
-4- Install Docker Engine
-```sh
-sudo yum install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-```
-
-<img src="img/docker/4.JPG">
-<img src="img/docker/5.JPG">
-
-5- Start Docker and enable it on startup:
-
-```sh
-sudo systemctl start docker
-sudo systemctl enable docker
-```
-
-6- Check docker version:
-```sh
-sudo docker version
-```
-
-<img src="img/docker/6.JPG">
-
-Now since we have docker up and running on all the virtual Machines, we need to configure crio which will be the container runtime engine for our kubernetes cluster. 
-
+<strong>Installation of crio as a Container Runtime Interface fo Kubernetes</strong>
 The supported versions for CRIO doesn’t cover RHEL 9 so we are going to use Centos 8 installation steps.
 
 You might wonder why we didn’t install docker as a run time, it is due to this .
@@ -293,7 +220,7 @@ sudo systemctl enable --now kubelet
 <img src="img/kube/2.JPG">
 <img src="img/kube/3.JPG">
 
-<h2>Configuration for Master node and creating the cluster</h2>
+<h2 id="master">Configuration for Master node and creating the cluster</h2>
 
 Now that we have all the packages ready and installed on the server the next step is to create the control plane using kubeadm. Truncated output below for better visibility.
 
@@ -373,7 +300,7 @@ It should look something like that, You can ignore the line that contains "nginx
 
 Perfect now our first machine which plays the role of master or control plane ready. Now we can procede with making other machines join the cluster. 
 
-<h2>Joining worker nodes to the cluster</h2>
+<h2 id="join">Joining worker nodes to the cluster</h2>
 
 Now we recover the join command showed above and we paste it in each worker node: 
 Just add the flag --cri-socket=unix:///var/run/crio/crio.sock to avoid system confusion. This is the case when containerd is also installed.
@@ -388,3 +315,135 @@ in case you missed the command you can generate it again, from the master node u
 kubeadm token create --print-join-command
 ```
 
+<h2 id="helm">Configuring helm</h2>
+This section explains the steps to install Helm and install Helm charts for managing and deploying applications on the Kubernetes cluster.
+
+These steps will be applied on the <strong>master node </strong>.
+
+```sh
+yum install git 
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+export PATH=/usr/local/bin:$PATH
+
+```
+Helm should be installed on your machine after these steps. Now lets check it.
+
+<img src="img/helm/Capture.JPG">
+
+Lets proceede now with installing Airbyte.
+
+<h2 id="airbyte">Deploying Airbyte on the cluster using helm</h2>
+
+Lets start first by creating a storage class in our cluster. 
+Create a StorageClass that uses the local provisioner. The volumeBindingMode should be set to WaitForFirstConsumer to allow pods to control the binding of PVs:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+```
+Create a file with the name storage.yaml for example and fill it with the information above, then excute the command: 
+
+```sh
+kubectl apply -f storage.yaml
+```
+
+After that lets procede with create Two Persistant Volumes for our Airbyte Deployment. In this case I chose 1Gi as the size of each Pv. This value can be changed according to your guys needs:
+
+Create a file with the name pv.yaml for example and fill it with the information below, then excute the command: 
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-pv-1 # local-pv-2
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 1Gi #Change this according to your needs.
+  accessModes:
+    - ReadWriteOnce
+  local:
+    path: /mnt #Change this according to your needs.
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: local-storage
+          operator: In
+          values:
+          - enabled
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-worker1
+
+```
+
+Now execute the commnd: 
+
+```sh
+kubectl apply -f pv.yaml
+```
+
+Go back, to file pv.yaml, Edit it and change the value of "name" in the 4th line from 
+local-pv-1 to local-pv-2 for example and repeat the "kubectl apply -f pv.yaml" again.
+
+Now We have to Persistent volumes ready to be attached to Airbyte's PVC.
+
+You can check the existing PVs using the command : 
+
+```sh
+kubectl get pv
+```
+<img src="img/airbyte/pv.JPG">
+
+Next step is proceeding with the installation of Airbyte using helm. 
+
+From now charts are stored in helm-repo thus there're no need to clone the repo each time you need to deploy the chart.
+
+To add remote helm repo simply run: 
+
+```sh
+helm repo add airbyte https://airbytehq.github.io/helm-charts
+```
+
+And now we hit the install command
+```sh
+helm install airbyte airbyte/airbyte --set persistence.storageClass=local-storage --namespace=airbyte-ns-0 --create-namespace
+```
+
+you should be able to see something like this: 
+<img src="img/airbyte/success.JPG">
+
+Also we can check the presence of The PVC in our Airbyte app using the command: 
+
+```sh
+kubectl get pvc -n airbyte-ns-0
+```
+
+<img src="img/airbyte/pvc.JPG">
+
+<h2 id="trouble">Troubleshooting</h2>
+In this section, I put some notes about the errors that can encounter along the way during the configuration of kubernetes and the installation Airbyte. 
+
+Note: 
+
+All kubectl commands must be executed with the MASTER NODE.
+
+Error:
+
+Unable to connect to the server: tls: failed to verify certificate: x509: certificate signed by unknown authority (possibly because of "crypto/rsa: verification error" while trying to verify candidate authority certificate "kubernetes")
+
+just proceede with these commands: 
+
+```sh 
+sudo su
+export KUBECONFIG=/etc/kubernetes/admin.conf
+```
