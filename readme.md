@@ -280,9 +280,9 @@ kubectl get no -o wide
 <img src="img/kube/get-no.JPG">
 
 
-For the pods to communicate we should deploy networking addon. Here I am deploying flannel.
+For the pods to communicate we should deploy networking addon. Here I am deploying calico.
 
-So before we deploy flannel or any network addon you may notice that if you do a get pod -A, coredns will be in ContainerCreating status.
+So before we deploy calico or any network addon you may notice that if you do a get pod -A, coredns will be in ContainerCreating status.
 Lets install calico and see what happens.
 
 ```sh
