@@ -167,7 +167,7 @@ Lets login to the server and run the below commands to install CRIO (switch to r
 Install CRIO and start it using systemctl – Make sure it is running
 ```sh
 
-export VERSION=1.25
+export VERSION=1.28
 export OS=CentOS_8
 curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/devel:kubic:libcontainers:stable.repo
 curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo
@@ -422,6 +422,10 @@ helm install airbyte airbyte/airbyte --set persistence.storageClass=local-storag
 you should be able to see something like this: 
 <img src="img/airbyte/success.JPG">
 
+These Are all Airbyte components: 
+
+<img src="img/airbyte/all.JPG">
+
 Also we can check the presence of The PVC in our Airbyte app using the command: 
 
 ```sh
@@ -447,3 +451,6 @@ just proceede with these commands:
 sudo su
 export KUBECONFIG=/etc/kubernetes/admin.conf
 ```
+
+Note: 
+In case there is a problem when trying the "kubeadm join" command due to kubelet conflict, You may want to delete crio(version 1.28) and install another version. I suggest version 1.25.
