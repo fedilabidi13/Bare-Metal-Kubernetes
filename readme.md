@@ -315,6 +315,15 @@ in case you missed the command you can generate it again, from the master node u
 kubeadm token create --print-join-command
 ```
 
+After executing the join command successfully on the worker node, go back to the master node and check the readiness of the newly joined one using: 
+
+```sh
+kubectl get no -o wide
+```
+If everything is normal the output should be similar to this:
+<img src="img/all-nodes.JPG">
+
+Repeat this process for as machines as you want. In our case we worked with 3 machines only.
 <h2 id="helm">Configuring helm</h2>
 This section explains the steps to install Helm and install Helm charts for managing and deploying applications on the Kubernetes cluster.
 
