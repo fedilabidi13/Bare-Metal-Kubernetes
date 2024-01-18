@@ -399,6 +399,7 @@ Now execute the commnd:
 
 ```sh
 kubectl apply -f pv.yaml
+kubectl patch storageclass local-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 ```
 
 Go back, to file pv.yaml, Edit it and change the value of "name" in the 4th line from 
